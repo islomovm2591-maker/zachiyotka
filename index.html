@@ -394,7 +394,7 @@ function vTasks(){
      +'<div class="progress"><i style="width:'+p+'%"></i></div>'
      +(t.steps.length?'<details'+(ui.open===t.id?' open':'')+' data-tid="'+t.id+'"><summary>Шаги</summary><ul class="steps">'+t.steps.map((s,i)=>'<li><label><input type="checkbox" data-act="step" data-id="'+t.id+'" data-i="'+i+'"'+(s.done?' checked':'')+'><span class="'+(s.done?'d':'')+'">'+esc(s.t)+'</span></label></li>').join("")+'</ul></details>':'')
      +(t.notes?'<div class="muted" style="font-size:13px;white-space:pre-wrap">'+esc(t.notes)+'</div>':'')
-     +'<div class="row"><button class="btn small" data-act="edit-task" data-id="'+t.id+'">Изменить</button>'+(t.kind==="dok"||t.kind==="kurs"?'<button class="btn small" data-act="to-pres" data-id="'+t.id+'">Сделать план презентации</button>':'')+'</div></div>'}).join("")+'</div>';
+     +'<div class="row"><button class="btn small" data-act="edit-task" data-id="'+t.id+'">Изменить</button>'+'<button class="btn small" data-act="doc" data-id="'+t.id+'">'+(t.doc?'Документ Word ✎':'Документ Word')+'</button>'+(t.kind==="dok"||t.kind==="kurs"?'<button class="btn small" data-act="to-pres" data-id="'+t.id+'">Презентация</button>':'')+'</div></div>'}).join("")+'</div>';
   return h;
 }
 
@@ -404,23 +404,173 @@ const PRES={
   kurs:{n:"Защита курсовой",s:[["Титульный слайд","Вуз, кафедра, тема, ФИО, руководитель",.03],["Актуальность","Проблема и почему её нужно решать",.09],["Объект и предмет","Что и в каком аспекте изучается",.06],["Цель и задачи","Цель + задачи (как в введении)",.08],["Методы исследования","Какие методы и почему",.07],["Теоретическая часть","Главное из главы 1 — схема, не текст",.13],["Практическая часть","Что сделано: данные, расчёты",.17],["Результаты","Графики, таблицы, цифры",.17],["Выводы","По каждой задаче — один вывод",.12],["Рекомендации","Практическая значимость",.05],["Спасибо за внимание","Готовность к вопросам комиссии",.03]]},
   lab:{n:"Защита лабораторной",s:[["Тема и цель работы","Номер работы, цель",.1],["Теория","Формулы и закон, на котором основана работа",.2],["Ход работы","Схема установки или алгоритм",.25],["Результаты","Таблица измерений, график",.25],["Выводы","Совпали ли результаты с теорией",.15],["Вопросы","Готовность ответить",.05]]}
 };
+function initSlides(){const P=PRES[S.pres.kind]||PRES.dok;S.pres.slides=P.s.map(([h,d,w])=>({h,d,w,b:""}))}
+function slidesEmpty(){return !S.pres.slides||S.pres.slides.every(s=>!s.b.trim())}
 function buildPlan(){
-  const P=PRES[S.pres.kind]||PRES.dok,total=Math.max(2,+S.pres.minutes||7)*60;
-  return P.s.map(([h,d,w])=>({h,d,sec:Math.max(10,Math.round(total*w/5)*5)}));
+  if(!S.pres.slides||!S.pres.slides.length)initSlides();
+  const sl=S.pres.slides,total=Math.max(2,+S.pres.minutes||7)*60,sw=sl.reduce((a,s)=>a+(s.w||.1),0);
+  return sl.map((s,i)=>({h:i===0&&S.pres.topic?S.pres.topic:s.h,d:s.d,sec:Math.max(10,Math.round(total*(s.w||.1)/sw/5)*5)}));
 }
 function fmtS(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")}
+const THEMES={navy:{n:"Тёмно-синяя",bg:"1D3557",fg:"FFFFFF",muted:"B9C6DA",accent:"F4C542"},light:{n:"Светлая",bg:"FFFFFF",fg:"15233A",muted:"5D6B82",accent:"1D3557"},graphite:{n:"Графит",bg:"22262E",fg:"EEF1F5",muted:"9AA3B2",accent:"5CC58A"}};
 function vPresent(){
-  const plan=buildPlan(),total=plan.reduce((a,b)=>a+b.sec,0);
+  const plan=buildPlan(),total=plan.reduce((a,b)=>a+b.sec,0),sl=S.pres.slides;
   let h='<div class="stack" style="margin-top:4px"><label class="f">Тема выступления<input id="p-topic" value="'+esc(S.pres.topic)+'" placeholder="Например, Возобновляемая энергетика"></label>'
    +'<div class="grid2"><label class="f">Тип<select id="p-kind">'+Object.keys(PRES).map(k=>'<option value="'+k+'"'+(S.pres.kind===k?' selected':'')+'>'+PRES[k].n+'</option>').join("")+'</select></label>'
-   +'<label class="f">Время на выступление, мин<input id="p-min" type="number" inputmode="numeric" min="2" max="30" value="'+esc(S.pres.minutes)+'"></label></div></div>';
-  h+='<div class="row" style="margin:18px 0 10px"><h2 class="grow" style="margin:0">План слайдов</h2><span class="muted mono">'+plan.length+' слайдов · '+fmtS(total)+'</span></div>';
-  h+='<ol class="slides">'+plan.map((s,i)=>'<li class="slide'+(ui.timer&&ui.slide===i?' active':'')+'"><span class="n">'+(i+1)+'</span><div style="min-width:0"><div class="h">'+esc(i===0&&S.pres.topic?S.pres.topic:s.h)+'</div><div class="d">'+esc(i===0&&S.pres.topic?s.d:s.d)+'</div></div><span class="mono muted">'+fmtS(s.sec)+'</span></li>').join("")+'</ol>';
-  h+='<div class="row" style="margin-top:10px"><button class="btn" data-act="copy-plan">Скопировать план</button></div>';
-  h+='<h2>Репетиция</h2><div class="timer"><span class="label">'+(ui.timer?"Слайд "+(ui.slide+1)+" из "+plan.length+": "+esc(plan[ui.slide].h):"Нажмите «Старт» и говорите вслух")+'</span><div class="big" id="t-big">'+fmtS(ui.elapsed||0)+' <span style="font-size:18px;opacity:.7">/ '+fmtS(total)+'</span></div><div class="bar"><i id="t-bar" style="width:'+Math.min(100,(ui.elapsed||0)/total*100)+'%"></i></div>'
+   +'<label class="f">Время на выступление, мин<input id="p-min" type="number" inputmode="numeric" min="2" max="30" value="'+esc(S.pres.minutes)+'"></label>'
+   +'<label class="f">Дисциплина<input id="p-subj" list="p-subjects" value="'+esc(S.pres.subject||"")+'"><datalist id="p-subjects">'+subjOptions()+'</datalist></label>'
+   +'<label class="f">Оформление<select id="p-theme">'+Object.keys(THEMES).map(k=>'<option value="'+k+'"'+((S.pres.theme||"navy")===k?' selected':'')+'>'+THEMES[k].n+'</option>').join("")+'</select></label></div></div>';
+  h+='<div class="row" style="margin:18px 0 6px"><h2 class="grow" style="margin:0">Слайды</h2><span class="muted mono" id="p-total">'+plan.length+' слайдов · '+fmtS(total)+'</span></div>';
+  h+='<p class="muted" style="margin:0 0 10px;font-size:13px">Пишите тезисы, по одному на строку. Подсказка под заголовком попадёт в заметки докладчика.</p>';
+  h+='<ol class="slides">'+sl.map((s,i)=>'<li class="slide'+(ui.timer&&ui.slide===i?' active':'')+'"><span class="n">'+(i+1)+'</span><div class="stack" style="min-width:0;gap:6px">'
+     +(i===0?'<div class="h">'+esc(S.pres.topic||"Титульный слайд")+'</div><div class="d">Тема, ФИО и группа подставятся автоматически (ФИО — в настройках ⚙)</div>'
+            :'<input id="ps-h-'+i+'" data-si="'+i+'" class="ps-h" value="'+esc(s.h)+'" aria-label="Заголовок слайда '+(i+1)+'"><div class="d">'+esc(s.d)+'</div>')
+     +'<textarea id="ps-b-'+i+'" data-si="'+i+'" class="ps-b" rows="3" placeholder="'+(i===0?"Дополнительная строка, например «Научный руководитель: …»":"Тезис 1&#10;Тезис 2&#10;Тезис 3")+'">'+esc(s.b)+'</textarea></div>'
+     +'<div class="stack" style="align-items:flex-end;gap:4px"><span class="mono muted">'+fmtS(plan[i].sec)+'</span>'+(i>0&&i<sl.length-1?'<button class="btn small ghost" data-act="ps-del" data-i="'+i+'" aria-label="Удалить слайд">✕</button>':'')+'</div></li>').join("")+'</ol>';
+  h+='<div class="row" style="margin-top:10px"><button class="btn" data-act="ps-add">+ Слайд</button><button class="btn ghost" data-act="ps-reset">Сбросить по шаблону</button></div>';
+  h+='<div class="row" style="margin-top:14px"><button class="btn primary" data-act="pptx">Скачать .pptx</button><button class="btn" data-act="copy-plan">Скопировать текст</button></div>';
+  h+='<h2>Репетиция</h2><div class="timer"><span class="label" id="t-label">'+(ui.timer?"Слайд "+(ui.slide+1)+" из "+plan.length+": "+esc(plan[ui.slide].h):"Нажмите «Старт» и говорите вслух")+'</span><div class="big"><span id="t-big">'+fmtS(ui.elapsed||0)+'</span> <span style="font-size:18px;opacity:.7">/ '+fmtS(total)+'</span></div><div class="bar"><i id="t-bar" style="width:'+Math.min(100,(ui.elapsed||0)/total*100)+'%"></i></div>'
    +'<div class="row"><button class="btn small" data-act="t-toggle">'+(ui.timer?"Пауза":"Старт")+'</button><button class="btn small" data-act="t-next"'+(ui.timer?'':' disabled')+'>Следующий слайд</button><button class="btn small ghost" style="color:inherit" data-act="t-reset">Сброс</button></div></div>';
   h+='<h2>Правила хорошего слайда</h2><ul class="tips"><li>Не больше 6 строк по 6 слов. Остальное говорите вслух.</li><li>Шрифт не меньше 24 pt, заголовок — от 32 pt.</li><li>Одна мысль — один слайд.</li><li>Картинка или график лучше абзаца текста.</li><li>Не читайте со слайда: смотрите на аудиторию.</li><li>Примерно 1 минута на слайд — нормальный темп.</li><li>Проверьте файл на компьютере аудитории заранее, возьмите копию в PDF.</li></ul>';
   return h;
+}
+
+/* ---------- Files ---------- */
+function loadLib(src,name){
+  if(window[name])return Promise.resolve(window[name]);
+  return new Promise((res,rej)=>{const s=document.createElement("script");s.src=src;s.onload=()=>window[name]?res(window[name]):rej(new Error("lib"));s.onerror=()=>rej(new Error("lib"));document.head.appendChild(s)});
+}
+function fname(s){return (s||"Документ").replace(/[\\/:*?"<>|«»]+/g,"").replace(/\s+/g," ").trim().slice(0,60)||"Документ"}
+async function saveFile(blob,name){
+  try{
+    const file=new File([blob],name,{type:blob.type});
+    if(matchMedia("(pointer:coarse)").matches&&navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:name});return}
+  }catch(e){if(e&&e.name==="AbortError")return}
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000);toast("Файл сохранён: "+name);
+}
+function prof(){return Object.assign({name:"",group:"",org:"МИНИСТЕРСТВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ РОССИЙСКОЙ ФЕДЕРАЦИИ\nФедеральное государственное автономное образовательное учреждение высшего образования\n«МОСКОВСКИЙ ПОЛИТЕХНИЧЕСКИЙ УНИВЕРСИТЕТ»\n(МОСКОВСКИЙ ПОЛИТЕХ)",faculty:"",city:"Москва"},S.profile||{})}
+function teacherFor(subject,type){
+  const ls=S.lessons.filter(l=>l.subject.replace(/\s*\(онлайн-курс\)$/,"")===subject&&l.teacher);
+  const l=ls.find(x=>x.type===type)||ls[0];if(!l)return "";
+  const p=l.teacher.split(/,\s*/)[0].split(/\s+/);return p.length>=3?p[0]+" "+p[1][0]+". "+p[2][0]+".":l.teacher.split(/,\s*/)[0];
+}
+
+async function makePptx(){
+  let P;try{P=await loadLib("vendor/pptxgen.bundle.js","PptxGenJS")}catch(e){toast("Не удалось загрузить модуль презентаций. Проверьте интернет.");return}
+  const emptyN=S.pres.slides.filter((x,i)=>i>0&&i<S.pres.slides.length-1&&!x.b.trim()).length;
+  toast(emptyN?"Готовлю презентацию… Слайдов без текста: "+emptyN+" — их можно дописать в PowerPoint":"Готовлю презентацию…");
+  const th=THEMES[S.pres.theme||"navy"],pr=prof(),topic=S.pres.topic||"Презентация",sl=S.pres.slides,n=sl.length;
+  const pptx=new P();pptx.layout="LAYOUT_WIDE";pptx.title=topic;pptx.author=pr.name||"";
+  const F="Arial",univ=(pr.org.split("\n").find(x=>/«/.test(x))||"").replace(/[«»]/g,"");
+  sl.forEach((s,i)=>{
+    const sd=pptx.addSlide();sd.background={color:th.bg};
+    const lines=s.b.split("\n").map(x=>x.trim()).filter(Boolean);
+    if(i===0){
+      if(univ)sd.addText(univ,{x:.6,y:.4,w:12.1,h:.5,fontSize:14,color:th.muted,fontFace:F});
+      sd.addShape(pptx.ShapeType.rect,{x:.6,y:2.2,w:.14,h:2.2,fill:{color:th.accent},line:{color:th.accent}});
+      sd.addText(topic,{x:.95,y:2.0,w:11.6,h:2.6,fontSize:40,bold:true,color:th.fg,fontFace:F,valign:"middle",fit:"shrink"});
+      const t=teacherFor(S.pres.subject||"","lec");
+      const sub=[pr.name&&("Выполнил(а): "+pr.name+(pr.group?", группа "+pr.group:"")),S.pres.subject&&("Дисциплина: «"+S.pres.subject+"»"),t&&("Преподаватель: "+t)].filter(Boolean).concat(lines);
+      if(sub.length)sd.addText(sub.join("\n"),{x:.95,y:4.8,w:11.6,h:1.7,fontSize:18,color:th.muted,fontFace:F,valign:"top"});
+      sd.addText((pr.city||"")+" "+new Date().getFullYear(),{x:.6,y:6.8,w:12.1,h:.4,fontSize:12,color:th.muted,fontFace:F,align:"right"});
+    }else if(i===n-1&&/спасибо/i.test(s.h)){
+      sd.addText(s.h,{x:.6,y:2.4,w:12.1,h:1.4,fontSize:44,bold:true,color:th.fg,fontFace:F,align:"center"});
+      sd.addShape(pptx.ShapeType.rect,{x:6.17,y:3.95,w:1,h:.1,fill:{color:th.accent},line:{color:th.accent}});
+      sd.addText(lines.length?lines.join("\n"):"Готов(а) ответить на вопросы",{x:.6,y:4.3,w:12.1,h:1.2,fontSize:20,color:th.muted,fontFace:F,align:"center"});
+    }else{
+      sd.addShape(pptx.ShapeType.rect,{x:.6,y:.6,w:.12,h:.75,fill:{color:th.accent},line:{color:th.accent}});
+      sd.addText(s.h,{x:.9,y:.45,w:11.8,h:1.05,fontSize:30,bold:true,color:th.fg,fontFace:F,valign:"middle",fit:"shrink"});
+      if(lines.length)sd.addText(lines.map(t=>({text:t.replace(/^[-–•*]\s*/,""),options:{bullet:{indent:22},breakLine:true}})),{x:.9,y:1.75,w:11.8,h:4.9,fontSize:lines.length>6?20:24,color:th.fg,fontFace:F,valign:"top",paraSpaceAfter:12,fit:"shrink"});
+      sd.addText(String(i+1)+" / "+n,{x:11.4,y:6.95,w:1.4,h:.35,fontSize:11,color:th.muted,fontFace:F,align:"right"});
+    }
+    if(s.d)sd.addNotes(s.d);
+  });
+  const blob=await pptx.write({outputType:"blob"});
+  await saveFile(new Blob([blob],{type:"application/vnd.openxmlformats-officedocument.presentationml.presentation"}),fname(topic)+".pptx");
+}
+
+/* Документы по ГОСТ */
+const DOC_TPL={
+  lab:{title:"ОТЧЁТ",num:"по лабораторной работе №",s:["Цель работы","Оборудование и программное обеспечение","Краткие теоретические сведения","Ход работы","Результаты","Выводы"]},
+  ref:{title:"РЕФЕРАТ",toc:true,s:["Введение","1. ","2. ","Заключение","Список использованных источников"]},
+  kurs:{title:"КУРСОВАЯ РАБОТА",toc:true,s:["Введение","1. Теоретическая часть","2. Практическая часть","Заключение","Список использованных источников"]},
+  sam:{title:"САМОСТОЯТЕЛЬНАЯ РАБОТА",num:"№",s:["Задание","Решение","Ответ"]},
+  dok:{title:"ДОКЛАД",s:["Введение","Основная часть","Заключение","Список использованных источников"]},
+  other:{title:"РАБОТА",s:["Введение","Основная часть","Заключение"]}
+};
+const DOC_HINT={
+  "Цель работы":"Изучить … / Научиться …",
+  "Оборудование и программное обеспечение":"- Компьютер\n- Python 3.12, VS Code",
+  "Ход работы":"Опишите шаги по порядку. Строка, начинающаяся с «- », станет пунктом списка.",
+  "Результаты":"Таблица: столбцы через « | », первая строка — шапка.\nОпыт | U, В | I, А\n1 | 2,0 | 0,15",
+  "Выводы":"В ходе работы я изучил(а) … Результаты показали …",
+  "Список использованных источников":"Иванов И. И. Название книги. — М.: Издательство, 2024. — 300 с.\nНазвание сайта [Электронный ресурс]. — URL: https://… (дата обращения: 01.11.2026)."
+};
+function docSheet(t){
+  const tpl=DOC_TPL[t.kind]||DOC_TPL.other;
+  const d=t.doc||{topic:t.title.replace(/^[^:]+:\s*/,""),n:((/№\s*(\d+)/.exec(t.title)||[])[1]||""),teacher:teacherFor(t.subject,t.kind==="lab"?"lab":"prac"),sections:tpl.s.map(h=>({h,t:""}))};
+  openSheet('<h3>'+esc(tpl.title.charAt(0)+tpl.title.slice(1).toLowerCase())+' · документ Word</h3>'
+   +'<p class="muted" style="margin:0;font-size:13px">Титульный лист, поля и шрифт по ГОСТ (Times New Roman 14, интервал 1,5) приложение оформит само. ФИО и группа берутся из настроек ⚙.</p>'
+   +'<form id="df" class="stack"><label class="f">Тема<input id="df-topic" value="'+esc(d.topic)+'"></label>'
+   +'<div class="grid2">'+(tpl.num?'<label class="f">Номер работы<input id="df-n" inputmode="numeric" value="'+esc(d.n)+'"></label>':'')
+   +'<label class="f">Проверил(а)<input id="df-teacher" value="'+esc(d.teacher)+'" placeholder="Фамилия И. О."></label></div>'
+   +d.sections.map((s,i)=>'<div class="stack" style="gap:4px"><input id="df-h-'+i+'" value="'+esc(s.h)+'" style="font-weight:700" aria-label="Заголовок раздела"><textarea id="df-t-'+i+'" style="font-family:var(--f-body);font-size:14px" placeholder="'+esc(DOC_HINT[s.h]||"Текст раздела. Каждая строка — новый абзац.")+'">'+esc(s.t)+'</textarea></div>').join("")
+   +'<div class="row"><button class="btn primary" type="submit">Скачать .docx</button><button class="btn" type="button" data-act="doc-save">Сохранить</button><button class="btn" type="button" data-act="close">Закрыть</button></div></form>',
+  sh=>{
+    const collect=()=>{t.doc={topic:sh.querySelector("#df-topic").value.trim(),n:tpl.num?sh.querySelector("#df-n").value.trim():"",teacher:sh.querySelector("#df-teacher").value.trim(),sections:d.sections.map((s,i)=>({h:sh.querySelector("#df-h-"+i).value,t:sh.querySelector("#df-t-"+i).value}))};save()};
+    sh.querySelector("[data-act=doc-save]").addEventListener("click",e=>{e.stopPropagation();collect();closeSheet();toast("Черновик сохранён")});
+    sh.querySelector("#df").addEventListener("submit",e=>{e.preventDefault();collect();makeDocx(t)});
+  });
+}
+async function makeDocx(t){
+  let D;try{D=await loadLib("vendor/docx.umd.js","docx")}catch(e){toast("Не удалось загрузить модуль Word. Проверьте интернет.");return}
+  toast("Готовлю документ…");
+  const tpl=DOC_TPL[t.kind]||DOC_TPL.other,d=t.doc,pr=prof(),C=D.AlignmentType.CENTER;
+  const P=(text,o)=>new D.Paragraph(Object.assign({children:[new D.TextRun({text,bold:o&&o.bold,size:o&&o.size,allCaps:o&&o.caps})]},o&&o.p));
+  const gap=n=>Array.from({length:n},()=>new D.Paragraph({text:""}));
+  const title=[];
+  pr.org.split("\n").filter(Boolean).forEach(l=>title.push(P(l,{size:24,p:{alignment:C,spacing:{line:240}}})));
+  if(pr.faculty)pr.faculty.split("\n").forEach(l=>title.push(P(l,{size:24,p:{alignment:C,spacing:{line:240}}})));
+  title.push(...gap(5),P(tpl.title,{bold:true,size:32,p:{alignment:C}}));
+  if(tpl.num)title.push(P(tpl.num+" "+(d.n||"___"),{p:{alignment:C}}));
+  if(t.subject)title.push(P("по дисциплине «"+t.subject.replace(/\s*\(онлайн-курс\)$/,"")+"»",{p:{alignment:C}}));
+  if(d.topic)title.push(P("на тему: «"+d.topic+"»",{p:{alignment:C}}));
+  const R={indent:{left:5103},spacing:{line:300}};
+  title.push(...gap(5),P("Выполнил(а): студент(ка) группы "+(pr.group||"________"),{p:R}),P(pr.name||"________________",{p:R}),new D.Paragraph({text:""}),P("Проверил(а):",{p:R}),P(d.teacher||"________________",{p:R}),...gap(5),
+    P((pr.city||"")+" "+new Date().getFullYear(),{p:{alignment:C}}));
+  const body=[];
+  if(tpl.toc){body.push(new D.Paragraph({children:[new D.PageBreak()]}),P("СОДЕРЖАНИЕ",{bold:true,p:{alignment:C,spacing:{after:240}}}),new D.TableOfContents("Содержание",{hyperlink:true,headingStyleRange:"1-1"}))}
+  d.sections.forEach((s,si)=>{
+    if(!s.h.trim()&&!s.t.trim())return;
+    const brk=si===0||tpl.toc;
+    body.push(new D.Paragraph({heading:D.HeadingLevel.HEADING_1,pageBreakBefore:brk,alignment:tpl.toc&&!/^\d/.test(s.h)?C:D.AlignmentType.LEFT,indent:tpl.toc&&!/^\d/.test(s.h)?undefined:{firstLine:709},children:[new D.TextRun({text:tpl.toc&&!/^\d/.test(s.h)?s.h.toUpperCase():s.h})]}));
+    const lines=s.t.split("\n");let i=0;const isSrc=/источник|литератур/i.test(s.h);let num=0;
+    while(i<lines.length){
+      const ln=lines[i].trim();
+      if(!ln){i++;continue}
+      if(ln.includes("|")){
+        const rows=[];while(i<lines.length&&lines[i].includes("|")){rows.push(lines[i].split("|").map(x=>x.trim()));i++}
+        const cols=Math.max(...rows.map(r=>r.length));
+        body.push(new D.Table({width:{size:100,type:D.WidthType.PERCENTAGE},rows:rows.map((r,ri)=>new D.TableRow({tableHeader:ri===0,children:Array.from({length:cols},(_,ci)=>new D.TableCell({children:[new D.Paragraph({alignment:C,spacing:{line:240},children:[new D.TextRun({text:r[ci]||"",bold:ri===0,size:24})]})]}))}))}),new D.Paragraph({text:""}));
+        continue;
+      }
+      if(isSrc){num++;body.push(P(num+". "+ln.replace(/^\d+[.)]\s*/,""),{p:{alignment:D.AlignmentType.JUSTIFIED,indent:{firstLine:709}}}))}
+      else if(/^[-–•*]\s+/.test(ln))body.push(P("– "+ln.replace(/^[-–•*]\s+/,""),{p:{alignment:D.AlignmentType.JUSTIFIED,indent:{left:709,hanging:284}}}));
+      else body.push(P(ln,{p:{alignment:D.AlignmentType.JUSTIFIED,indent:{firstLine:709}}}));
+      i++;
+    }
+  });
+  const doc=new D.Document({
+    creator:pr.name||"Зачётка",title:d.topic||tpl.title,features:{updateFields:!!tpl.toc},
+    styles:{default:{document:{run:{font:"Times New Roman",size:28},paragraph:{spacing:{line:360}}}},
+      paragraphStyles:[{id:"Heading1",name:"Heading 1",basedOn:"Normal",next:"Normal",quickFormat:true,run:{font:"Times New Roman",size:28,bold:true,color:"000000"},paragraph:{spacing:{before:240,after:240}}}]},
+    sections:[{properties:{titlePage:true,page:{margin:{top:1134,bottom:1134,left:1701,right:850}}},
+      footers:{default:new D.Footer({children:[new D.Paragraph({alignment:C,children:[new D.TextRun({children:[D.PageNumber.CURRENT],size:24})]})]}),first:new D.Footer({children:[new D.Paragraph({text:""})]})},
+      children:title.concat(body)}]
+  });
+  const blob=await D.Packer.toBlob(doc);
+  await saveFile(new Blob([blob],{type:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"}),fname((tpl.title.charAt(0)+tpl.title.slice(1).toLowerCase())+" "+(d.n?"№"+d.n+" ":"")+(t.subject||d.topic))+".docx");
 }
 
 /* ---------- Render ---------- */
@@ -521,14 +671,19 @@ function taskSheet(t){
 }
 
 function settingsSheet(){
+  const pr=prof();
   openSheet('<h3>Настройки</h3><form id="sf" class="stack">'
+   +'<div class="label">Для титульных листов</div><div class="grid2"><label class="f">ФИО<input id="sf-name" value="'+esc(pr.name)+'" placeholder="Иванов Иван Иванович"></label><label class="f">Группа<input id="sf-group" value="'+esc(pr.group)+'" placeholder="241-321"></label></div>'
+   +'<label class="f">Вуз (шапка титульного листа)<textarea id="sf-org" style="font-family:var(--f-body);font-size:13px;min-height:90px">'+esc(pr.org)+'</textarea></label>'
+   +'<div class="grid2"><label class="f">Факультет / кафедра<input id="sf-fac" value="'+esc(pr.faculty)+'" placeholder="Факультет информационных технологий"></label><label class="f">Город<input id="sf-city" value="'+esc(pr.city)+'"></label></div>'
    +'<label class="f">Начало семестра (первая неделя — числитель)<input id="sf-start" type="date" value="'+esc(S.settings.semStart)+'"></label>'
    +'<div class="label">Звонки</div><div class="stack">'+S.settings.bells.map((b,i)=>'<div class="row"><span class="mono" style="width:60px">'+(i+1)+' пара</span><input id="sf-b'+i+'a" type="time" value="'+b[0]+'" style="flex:1"><span>–</span><input id="sf-b'+i+'b" type="time" value="'+b[1]+'" style="flex:1"></div>').join("")+'</div>'
    +'<div class="row"><button class="btn primary" type="submit">Сохранить</button><button class="btn" type="button" data-act="close">Закрыть</button></div></form>'
    +'<div class="label" style="margin-top:8px">Резервная копия</div><p class="muted" style="margin:0;font-size:13px">Данные хранятся только на этом устройстве. Скопируйте текст ниже, чтобы перенести их на другой телефон, и вставьте его туда.</p>'
-   +'<textarea id="sf-json">'+esc(JSON.stringify({lessons:S.lessons,tasks:S.tasks,settings:S.settings}))+'</textarea>'
+   +'<textarea id="sf-json">'+esc(JSON.stringify({lessons:S.lessons,tasks:S.tasks,settings:S.settings,profile:S.profile,pres:S.pres}))+'</textarea>'
    +'<div class="row"><button class="btn" data-act="copy-json">Скопировать</button><button class="btn" data-act="import-json">Загрузить из поля</button><button class="btn danger ghost" data-act="reset-all" style="margin-left:auto">Стереть всё</button></div>',
   sh=>sh.querySelector("#sf").addEventListener("submit",e=>{e.preventDefault();
+    S.profile={name:sh.querySelector("#sf-name").value.trim(),group:sh.querySelector("#sf-group").value.trim(),org:sh.querySelector("#sf-org").value.trim(),faculty:sh.querySelector("#sf-fac").value.trim(),city:sh.querySelector("#sf-city").value.trim()};
     S.settings.semStart=sh.querySelector("#sf-start").value||S.settings.semStart;
     S.settings.bells=S.settings.bells.map((b,i)=>[sh.querySelector("#sf-b"+i+"a").value||b[0],sh.querySelector("#sf-b"+i+"b").value||b[1]]);
     ui.week=null;save();closeSheet();render();toast("Настройки сохранены")}));
@@ -571,14 +726,19 @@ document.addEventListener("click",e=>{
     case "add-task":taskSheet();break;
     case "edit-task":taskSheet(S.tasks.find(t=>t.id===id));break;
     case "del-task":if(a.dataset.sure){S.tasks=S.tasks.filter(t=>t.id!==id);save();closeSheet();render();toast("Задание удалено")}else{a.dataset.sure=1;a.textContent="Точно удалить?"}break;
-    case "to-pres":{const t=S.tasks.find(t=>t.id===id);S.pres.topic=t.title.replace(/^[^:]+:\s*/,"");S.pres.kind=t.kind==="kurs"?"kurs":"dok";save();setTab("present");break}
-    case "copy-plan":{const plan=buildPlan();copyText((S.pres.topic||"Презентация")+"\n\n"+plan.map((s,i)=>(i+1)+". "+s.h+" ("+fmtS(s.sec)+") — "+s.d).join("\n"));break}
+    case "to-pres":{const t=S.tasks.find(t=>t.id===id);S.pres.topic=t.title.replace(/^[^:]+:\s*/,"");S.pres.subject=t.subject;const k=t.kind==="kurs"?"kurs":"dok";if(k!==S.pres.kind&&slidesEmpty()){S.pres.kind=k;initSlides()}save();setTab("present");break}
+    case "doc":docSheet(S.tasks.find(t=>t.id===id));break;
+    case "pptx":makePptx().catch(()=>toast("Не получилось создать файл"));break;
+    case "ps-add":{const sl=S.pres.slides,at=Math.max(1,sl.length-(/спасибо/i.test(sl[sl.length-1].h)?1:0)-(/источник/i.test((sl[sl.length-2]||{}).h||"")?1:0));sl.splice(at,0,{h:"Новый слайд",d:"",w:.12,b:""});save();render();const el=document.getElementById("ps-h-"+at);if(el){el.focus();el.select()}break}
+    case "ps-del":S.pres.slides.splice(+a.dataset.i,1);save();render();break;
+    case "ps-reset":if(a.dataset.sure||slidesEmpty()){initSlides();save();render();toast("Слайды пересозданы")}else{a.dataset.sure=1;a.textContent="Текст слайдов удалится. Точно?"}break;
+    case "copy-plan":{const plan=buildPlan();copyText((S.pres.topic||"Презентация")+"\n\n"+plan.map((p,i)=>(i+1)+". "+p.h+" ("+fmtS(p.sec)+")\n"+(S.pres.slides[i].b.trim()||p.d)).join("\n\n"));break}
     case "t-toggle":if(ui.timer){clearInterval(ui.timer);ui.timer=null}else{ui.elapsed=ui.elapsed||0;ui.timer=setInterval(tick,1000)}render();break;
     case "t-next":{const n=buildPlan().length;ui.slide=Math.min(n-1,ui.slide+1);render();break}
     case "t-reset":clearInterval(ui.timer);ui.timer=null;ui.elapsed=0;ui.slide=0;render();break;
     case "copy-json":copyText(document.getElementById("sf-json").value,document.getElementById("sf-json"));break;
-    case "import-json":try{const d=JSON.parse(document.getElementById("sf-json").value);if(!Array.isArray(d.lessons))throw 0;S.lessons=d.lessons;S.tasks=d.tasks||[];S.settings=d.settings||S.settings;S.sample=false;save();closeSheet();render();toast("Данные загружены")}catch(err){toast("Текст не похож на резервную копию Зачётки")}break;
-    case "reset-all":if(a.dataset.sure){S={settings:S.settings,lessons:[],tasks:[],pres:S.pres};save();closeSheet();render();toast("Всё стёрто")}else{a.dataset.sure=1;a.textContent="Точно стереть?"}break;
+    case "import-json":try{const d=JSON.parse(document.getElementById("sf-json").value);if(!Array.isArray(d.lessons))throw 0;S.lessons=d.lessons;S.tasks=d.tasks||[];S.settings=d.settings||S.settings;if(d.profile)S.profile=d.profile;if(d.pres)S.pres=d.pres;S.sample=false;save();closeSheet();render();toast("Данные загружены")}catch(err){toast("Текст не похож на резервную копию Зачётки")}break;
+    case "reset-all":if(a.dataset.sure){S={settings:S.settings,lessons:[],tasks:[],pres:{topic:"",minutes:7,kind:"dok"},profile:S.profile};save();closeSheet();render();toast("Всё стёрто")}else{a.dataset.sure=1;a.textContent="Точно стереть?"}break;
   }
 });
 document.addEventListener("keydown",e=>{
@@ -588,18 +748,25 @@ document.addEventListener("keydown",e=>{
 document.addEventListener("change",e=>{
   const el=e.target;
   if(el.dataset.act==="step"){const t=S.tasks.find(t=>t.id===el.dataset.id);t.steps[+el.dataset.i].done=el.checked;ui.open=t.id;save();render();return}
-  if(el.id==="p-kind"){S.pres.kind=el.value;save();render()}
+  if(el.id==="p-kind"){S.pres.kind=el.value;if(slidesEmpty())initSlides();else toast("Текст слайдов сохранён. Чтобы взять новый шаблон — «Сбросить по шаблону»");save();render()}
+  if(el.id==="p-theme"){S.pres.theme=el.value;save()}
 });
 document.addEventListener("input",e=>{
   const el=e.target;
   if(el.id==="room-q"){ui.roomQ=el.value;render()}
-  if(el.id==="p-topic"){S.pres.topic=el.value;save();render()}
+  if(el.id==="p-topic"){S.pres.topic=el.value;save()}
+  if(el.id==="p-subj"){S.pres.subject=el.value;save()}
   if(el.id==="p-min"){S.pres.minutes=+el.value||7;save();render()}
+  if(el.classList.contains("ps-h")){S.pres.slides[+el.dataset.si].h=el.value;save()}
+  if(el.classList.contains("ps-b")){S.pres.slides[+el.dataset.si].b=el.value;save()}
 });
 function tick(){
   ui.elapsed++;const plan=buildPlan();let acc=0,idx=0;for(let i=0;i<plan.length;i++){acc+=plan[i].sec;if(ui.elapsed<acc){idx=i;break}idx=i}
-  if(idx>ui.slide)ui.slide=idx;
-  if(ui.tab==="present")render();
+  const changed=idx>ui.slide;if(changed)ui.slide=idx;
+  if(ui.tab!=="present")return;
+  if(changed){render();return}
+  const tot=plan.reduce((a,b)=>a+b.sec,0),big=document.getElementById("t-big"),bar=document.getElementById("t-bar");
+  if(big)big.textContent=fmtS(ui.elapsed);if(bar)bar.style.width=Math.min(100,ui.elapsed/tot*100)+"%";
 }
 window.addEventListener("hashchange",()=>{const h=location.hash.slice(1);if(VIEWS[h]&&h!==ui.tab)setTab(h)});
 setInterval(()=>{if(ui.tab==="today"&&!document.getElementById("sheet-root").innerHTML)render()},30000);
