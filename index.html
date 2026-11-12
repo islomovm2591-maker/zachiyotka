@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Зачётка</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#1d3557">
+<meta name="description" content="Помощник студента: расписание, аудитории, задания и подготовка презентаций.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one-column phone app, sticky header, fixed bottom tab bar; widens to a centred 720px column on desktop */
+:root{
+  --bg:#f3f5f9; --surface:#ffffff; --ink:#15233a; --muted:#5d6b82; --line:#dde3ec;
+  --accent:#1d3557; --accent-ink:#ffffff; --mark:#f4c542; --mark-ink:#3a2c00;
+  --ok:#2e8b57; --warn:#c77d12; --bad:#c0392b; --soft:#e8edf5;
+  --lec:#3b6fd8; --prac:#2e8b57; --lab:#9b4dca; --sem:#c77d12;
+  --f-display:"Unbounded","Manrope",system-ui,sans-serif;
+  --f-body:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1522; --surface:#172133; --ink:#e6ecf5; --muted:#93a1b8; --line:#26334a;
+  --accent:#8fb3ff; --accent-ink:#0e1522; --mark:#f4c542; --mark-ink:#2a2000;
+  --ok:#5cc58a; --warn:#e9a640; --bad:#ef6f61; --soft:#1e2b42;
+  --lec:#7da2ff; --prac:#5cc58a; --lab:#c38ced; --sem:#e9a640; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1522; --surface:#172133; --ink:#e6ecf5; --muted:#93a1b8; --line:#26334a;
+  --accent:#8fb3ff; --accent-ink:#0e1522; --mark:#f4c542; --mark-ink:#2a2000;
+  --ok:#5cc58a; --warn:#e9a640; --bad:#ef6f61; --soft:#1e2b42;
+  --lec:#7da2ff; --prac:#5cc58a; --lab:#c38ced; --sem:#e9a640; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--f-body);-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bg)}
+.wrap{max-width:720px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 calc(96px + env(safe-area-inset-bottom,0px))}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);padding-block:14px 10px;display:flex;align-items:center;gap:12px}
+.brand{font-family:var(--f-display);font-weight:700;font-size:20px;letter-spacing:-.01em;margin:0;flex:1;min-width:0}
+.brand small{display:block;font:500 12px/1.3 var(--f-body);color:var(--muted);letter-spacing:0}
+.weekpill{font:600 12px var(--f-body);padding:6px 10px;border-radius:999px;background:var(--mark);color:var(--mark-ink);white-space:nowrap}
+h2{font-family:var(--f-display);font-weight:500;font-size:17px;margin:22px 0 10px;text-wrap:balance}
+.label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.muted{color:var(--muted)}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.stack{display:flex;flex-direction:column;gap:8px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.grow{flex:1;min-width:0}
+
+/* Now card */
+.now{background:var(--accent);color:var(--accent-ink);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:6px}
+.now .label{color:inherit;opacity:.75}
+.now .subj{font-family:var(--f-display);font-weight:700;font-size:20px;line-height:1.25;text-wrap:balance}
+.now .meta{display:flex;gap:14px;flex-wrap:wrap;font-weight:600}
+.bar{height:6px;border-radius:6px;background:color-mix(in srgb,var(--accent-ink) 25%,transparent);overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--mark)}
+
+/* Lesson list */
+.lesson{display:grid;grid-template-columns:72px 1fr auto;gap:12px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 12px 12px 0;position:relative;overflow:hidden}
+.lesson::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:var(--c,var(--muted))}
+.lesson .t{padding-left:14px;font-family:var(--f-mono);font-size:12px;color:var(--muted);line-height:1.35}
+.lesson .t b{display:block;color:var(--ink);font-size:14px}
+.lesson .name{font-weight:700;line-height:1.3}
+.lesson .sub{font-size:13px;color:var(--muted)}
+.lesson.current{outline:2px solid var(--mark);outline-offset:-1px}
+.room{font:600 13px var(--f-mono);background:var(--soft);padding:4px 8px;border-radius:8px;white-space:nowrap}
+.tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;background:color-mix(in srgb,var(--c) 16%,transparent);color:var(--c)}
+.joinlink{display:inline-block;margin-top:6px;font-size:13px;font-weight:700;color:var(--accent);text-decoration:none;border-bottom:1.5px solid var(--mark)}
+.room{max-width:120px;white-space:normal;text-align:right;overflow-wrap:anywhere}
+.wk{font-size:11px;font-weight:700;color:var(--mark-ink);background:var(--mark);padding:1px 6px;border-radius:5px;margin-left:4px}
+
+/* Segmented controls */
+.seg{display:flex;gap:4px;background:var(--soft);padding:4px;border-radius:12px;overflow-x:auto}
+.seg button{flex:1;border:0;background:transparent;color:var(--muted);font:600 13px var(--f-body);padding:8px 6px;border-radius:9px;cursor:pointer;white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.seg button.today::after{content:"•";color:var(--mark);margin-left:3px}
+
+/* Buttons & forms */
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 14px var(--f-body);padding:10px 14px;border-radius:12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+.btn.danger{color:var(--bad)}
+.btn.small{padding:6px 10px;font-size:13px;border-radius:10px}
+.btn:focus-visible,.seg button:focus-visible,nav.tabs button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--mark);outline-offset:2px}
+.iconbtn{border:0;background:var(--soft);color:var(--ink);width:38px;height:38px;border-radius:12px;font-size:18px;cursor:pointer;flex:none}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;color:var(--muted)}
+input,select,textarea{font:500 15px var(--f-body);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;min-width:0}
+textarea{min-height:110px;resize:vertical;font-family:var(--f-mono);font-size:12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:420px){.grid2{grid-template-columns:1fr}}
+
+/* Tasks */
+.task{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.task.done{opacity:.6}
+.task .title{font-weight:700;line-height:1.3}
+.due{font:600 12px var(--f-body);padding:3px 8px;border-radius:999px;white-space:nowrap;background:var(--soft);color:var(--muted)}
+.due.soon{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
+.due.late{background:color-mix(in srgb,var(--bad) 16%,transparent);color:var(--bad)}
+.due.ok{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+.steps{display:flex;flex-direction:column;gap:2px;margin:0;padding:0;list-style:none}
+.steps label{display:flex;gap:8px;align-items:flex-start;font-size:14px;cursor:pointer;padding:3px 0}
+.steps input{width:18px;height:18px;flex:none;margin-top:2px;accent-color:var(--accent)}
+.steps .d{text-decoration:line-through;color:var(--muted)}
+.progress{height:4px;border-radius:4px;background:var(--soft);overflow:hidden}
+.progress i{display:block;height:100%;background:var(--ok)}
+details summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--muted)}
+
+/* Rooms */
+.roomcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.roomcard .num{font-family:var(--f-display);font-weight:700;font-size:18px}
+.roomcard ul{margin:0;padding-left:18px;font-size:14px}
+.status{font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px}
+.status.busy{background:color-mix(in srgb,var(--mark) 35%,transparent);color:var(--mark-ink)}
+:root[data-theme="dark"] .status.busy{color:var(--mark)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .status.busy{color:var(--mark)}}
+
+/* Presentation */
+.slides{counter-reset:s;display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
+.slide{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:grid;grid-template-columns:30px 1fr auto;gap:10px;align-items:start}
+.slide.active{border-color:var(--mark);box-shadow:0 0 0 2px var(--mark)}
+.slide .n{font:700 13px var(--f-mono);color:var(--muted);padding-top:2px}
+.slide .h{font-weight:700}
+.slide .d{font-size:13px;color:var(--muted)}
+.timer{background:var(--accent);color:var(--accent-ink);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:8px}
+.timer .big{font:500 40px/1 var(--f-mono);font-variant-numeric:tabular-nums}
+.tips{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+
+.empty{border:1.5px dashed var(--line);border-radius:14px;padding:22px;text-align:center;color:var(--muted);display:flex;flex-direction:column;gap:10px;align-items:center}
+.notice{background:color-mix(in srgb,var(--mark) 22%,var(--surface));border-radius:12px;padding:10px 12px;font-size:13px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+
+/* Bottom tabs */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:25;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+nav.tabs .in{max-width:720px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
+nav.tabs button{border:0;background:transparent;color:var(--muted);font:600 11px var(--f-body);padding:8px 2px 10px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}
+nav.tabs svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+nav.tabs button[aria-current="page"]{color:var(--accent)}
+
+/* Sheet */
+.sheet-bg{position:fixed;inset:0;z-index:40;background:rgba(10,16,28,.45);display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg);width:100%;max-width:720px;max-height:92%;overflow:auto;border-radius:20px 20px 0 0;padding:18px max(16px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:12px}
+.sheet h3{font-family:var(--f-display);font-weight:500;font-size:17px;margin:0}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:600;z-index:50;font-size:14px}
+@media (prefers-reduced-motion:no-preference){.sheet{animation:up .22s ease-out}@keyframes up{from{transform:translateY(30px);opacity:.4}}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1 class="brand">Зачётка<small id="today-line"></small></h1>
+    <span class="weekpill" id="week-pill"></span>
+    <button class="iconbtn" data-act="settings" aria-label="Настройки">⚙</button>
+  </header>
+  <main id="view"></main>
+</div>
+
+<nav class="tabs" aria-label="Разделы"><div class="in">
+  <button data-tab="today"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Сегодня</button>
+  <button data-tab="schedule"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Расписание</button>
+  <button data-tab="rooms"><svg viewBox="0 0 24 24"><path d="M4 21V5a2 2 0 0 1 2-2h8l6 4v14"/><path d="M2 21h20M14 13h.01"/></svg>Аудитории</button>
+  <button data-tab="tasks"><svg viewBox="0 0 24 24"><path d="M9 11l2 2 4-4"/><rect x="4" y="3" width="16" height="18" rx="2"/></svg>Задания</button>
+  <button data-tab="present"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1"/><path d="M12 16v4M8 20h8"/></svg>Презентация</button>
+</div></nav>
+
+<div id="sheet-root"></div>
+<div id="toast" class="toast" hidden></div>
+
+<script>
+(function(){
+"use strict";
+const KEY="zachetka.v1";
+const DAYS=["Понедельник","Вторник","Среда","Четверг","Пятница","Суббота"];
+const DAYS_S=["Пн","Вт","Ср","Чт","Пт","Сб"];
+const TYPES={lec:"Лекция",prac:"Практика",lab:"Лабораторная",sem:"Семинар"};
+const WEEKS={all:"Каждую неделю",odd:"Числитель",even:"Знаменатель"};
+const DEFAULT_BELLS=[["09:00","10:30"],["10:40","12:10"],["12:20","13:50"],["14:30","16:00"],["16:10","17:40"],["17:50","19:20"],["19:30","21:00"]];
+const KINDS={
+  ref:{n:"Реферат",steps:["Выбрать и согласовать тему","Найти 5–7 источников","Составить план","Написать введение","Написать основную часть","Заключение и выводы","Список литературы по ГОСТ","Оформить и проверить"]},
+  sam:{n:"Самостоятельная работа",steps:["Прочитать задание","Изучить конспект и литературу","Выполнить работу","Проверить и оформить"]},
+  lab:{n:"Лабораторная",steps:["Прочитать методичку","Выполнить работу","Записать результаты","Оформить отчёт","Подготовиться к защите"]},
+  dok:{n:"Доклад",steps:["Определить тему и цель","Собрать материал","Написать текст на 5–7 минут","Сделать презентацию","Прорепетировать вслух"]},
+  kurs:{n:"Курсовая",steps:["Утвердить тему с руководителем","Подобрать литературу","Составить содержание","Глава 1 (теория)","Глава 2 (практика)","Введение и заключение","Оформление по ГОСТ","Проверка на антиплагиат","Подготовить защиту"]},
+  other:{n:"Другое",steps:[]}
+};
+
+function uid(){return Math.random().toString(36).slice(2,10)}
+function sample(){
+  const L=(day,pair,subject,type,room,teacher,week)=>({id:uid(),day,pair,subject,type,room,teacher:teacher||"",week:week||"all"});
+  const d=new Date();const add=n=>{const x=new Date(d);x.setDate(x.getDate()+n);return iso(x)};
+  return {
+    sample:true,
+    settings:{semStart:guessSemStart(),bells:DEFAULT_BELLS.map(b=>b.slice())},
+    lessons:[
+      L(1,1,"Высшая математика","lec","А-204","Каримов Р. А."),L(1,2,"Высшая математика","prac","312","Каримов Р. А."),L(1,3,"Английский язык","prac","118","Смирнова Е. В."),
+      L(2,1,"Информатика","lec","А-101","Юсупов Д. Ш."),L(2,2,"Информатика","lab","Лаб-3","Юсупов Д. Ш.","odd"),L(2,2,"Физика","lab","Лаб-1","Ахмедова Н. Б.","even"),
+      L(3,2,"История Узбекистана","lec","А-204","Расулов Б. Т."),L(3,3,"Физическая культура","prac","Спортзал"),
+      L(4,1,"Физика","lec","А-101","Ахмедова Н. Б."),L(4,2,"Высшая математика","prac","312","Каримов Р. А."),L(4,3,"Информатика","prac","215","Юсупов Д. Ш."),
+      L(5,1,"Английский язык","prac","118","Смирнова Е. В."),L(5,2,"Философия","sem","220","Мирзаев О. К.","odd"),L(5,3,"История Узбекистана","sem","220","Расулов Б. Т.")
+    ],
+    tasks:[
+      {id:uid(),title:"Реферат: История Великого шёлкового пути",subject:"История Узбекистана",kind:"ref",due:add(9),notes:"",steps:KINDS.ref.steps.map((t,i)=>({t,done:i<2}))},
+      {id:uid(),title:"Лабораторная №2: циклы в Python",subject:"Информатика",kind:"lab",due:add(2),notes:"",steps:KINDS.lab.steps.map((t,i)=>({t,done:i<1}))},
+      {id:uid(),title:"Типовой расчёт: пределы",subject:"Высшая математика",kind:"sam",due:add(-1),notes:"",steps:KINDS.sam.steps.map(t=>({t,done:false}))}
+    ],
+    pres:{topic:"Искусственный интеллект в образовании",minutes:7,kind:"dok"}
+  };
+}
+function guessSemStart(){const d=new Date();const y=d.getMonth()>=8||d.getMonth()<1?(d.getMonth()<1?d.getFullYear()-1:d.getFullYear()):d.getFullYear();return d.getMonth()>=1&&d.getMonth()<8?y+"-02-01":y+"-09-02"}
+function iso(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+
+let S;
+try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){S=null}
+if(!S||!S.lessons)S=sample();
+S.pres=S.pres||{topic:"",minutes:7,kind:"dok"};
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+
+let ui={tab:"today",day:todayIdx()||1,week:null,wOff:0,taskFilter:"active",timer:null,slide:0};
+if(S.sample&&typeof window.SEED_ICS==="string")importICS(window.SEED_ICS,true);
+try{const t=localStorage.getItem(KEY+".tab");if(t)ui.tab=t}catch(e){}
+const H=location.hash.slice(1);if(["today","schedule","rooms","tasks","present"].includes(H))ui.tab=H;
+
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function todayIdx(){const g=new Date().getDay();return g===0?0:g}
+function mins(t){const[a,b]=t.split(":").map(Number);return a*60+b}
+function parity(date){
+  const s=new Date(S.settings.semStart+"T00:00:00");if(isNaN(s))return "odd";
+  const ms=d=>{const x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()-((x.getDay()+6)%7));return x};
+  const n=Math.floor((ms(date)-ms(s))/(7*864e5));
+  return (((n%2)+2)%2)===0?"odd":"even";
+}
+function weekNo(date){const s=new Date(S.settings.semStart+"T00:00:00");const ms=d=>{const x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()-((x.getDay()+6)%7));return x};return Math.floor((ms(date)-ms(s))/(7*864e5))+1}
+function lessonsFor(day,par){return S.lessons.filter(l=>l.day===day&&(l.week==="all"||!par||l.week===par)).sort((a,b)=>a.pair-b.pair)}
+/* Пары на конкретную дату: если в одном слоте несколько пар с разными датами начала, действует самая свежая */
+function lessonsOn(date){
+  const di=date.getDay();if(!di)return [];const ds=iso(date),par=parity(date);
+  const cand=S.lessons.filter(l=>l.day===di&&(l.week==="all"||l.week===par)&&(!l.from||l.from<=ds));
+  const best={};cand.forEach(l=>{const f=l.from||"";if(!(l.pair in best)||f>best[l.pair])best[l.pair]=f});
+  return cand.filter(l=>(l.from||"")===best[l.pair]).sort((a,b)=>a.pair-b.pair);
+}
+function usesParity(){return S.lessons.some(l=>l.week!=="all")}
+function mondayOf(d){const x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()-((x.getDay()+6)%7));return x}
+
+/* Импорт .ics (например, из личного кабинета Мосполитеха) */
+function parseICS(text){
+  const raw=text.replace(/\r\n/g,"\n").replace(/\n[ \t]/g,"");
+  const un=s=>(s||"").replace(/\\n/gi,"\n").replace(/\\,/g,",").replace(/\\;/g,";").replace(/\\\\/g,"\\").trim();
+  const ev=[];let cur=null;
+  raw.split("\n").forEach(line=>{
+    if(line==="BEGIN:VEVENT"){cur={};return}
+    if(line==="END:VEVENT"){if(cur)ev.push(cur);cur=null;return}
+    if(!cur)return;const i=line.indexOf(":");if(i<0)return;
+    const k=line.slice(0,i).split(";")[0].toUpperCase();cur[k]=line.slice(i+1);
+  });
+  const out=[];
+  ev.forEach(e=>{
+    const m=/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/.exec(e.DTSTART||"");if(!m)return;
+    const date=new Date(+m[1],+m[2]-1,+m[3]),day=date.getDay();if(!day)return;
+    const start=m[4]+":"+m[5],sm=mins(start);
+    let pair=1,bestD=1e9;S.settings.bells.forEach((b,i)=>{const d=Math.abs(mins(b[0])-sm);if(d<bestD){bestD=d;pair=i+1}});
+    const sum=un(e.SUMMARY);const pm=/^(.*?)\s*\(([^)]*)\)\s*$/.exec(sum);
+    const subject=pm?pm[1]:sum,tv=(pm?pm[2]:"").toLowerCase();
+    const type=tv.includes("лаб")?"lab":tv.includes("практ")?"prac":tv.includes("семин")?"sem":"lec";
+    const online=tv.includes("эор");
+    const desc=un(e.DESCRIPTION);
+    const teacher=((/Преподавател[ьи]:\s*([^\n]+)/i.exec(desc)||[])[1]||"").replace(/\s+/g," ").trim();
+    const link=((/(https?:\/\/\S+)/.exec(desc)||[])[1]||(/(https?:\/\/\S+)/.exec(un(e.URL))||[])[1]||"");
+    let loc=un(e.LOCATION),building="",room=loc;
+    if(/webinar|online|онлайн/i.test(loc)){room="Онлайн"}
+    else{const parts=loc.split(",").map(s=>s.trim()).filter(Boolean);if(parts.length>1&&!/\d/.test(parts[0])){building=parts.shift()}room=parts.join(", ")}
+    out.push({id:uid(),day,pair,subject:subject+(online?" (онлайн-курс)":""),type,room,building,teacher,link,week:"all",from:iso(date)});
+  });
+  return out;
+}
+function importICS(text,replace){
+  const ls=parseICS(text);if(!ls.length)return 0;
+  if(replace||S.sample){S.lessons=[]}
+  if(S.sample){S.tasks=[];S.sample=false}
+  const first=ls.map(l=>l.from).sort()[0];
+  S.lessons.push(...ls);
+  if(first){const d=new Date(first+"T00:00:00");S.settings.semStart=iso(new Date(d.getFullYear(),d.getMonth(),1))}
+  ui.week=null;save();return ls.length;
+}
+function bell(p){return S.settings.bells[p-1]||["--:--","--:--"]}
+function typeColor(t){return "var(--"+(t||"lec")+")"}
+function daysLeft(due){const a=new Date();a.setHours(0,0,0,0);const b=new Date(due+"T00:00:00");return Math.round((b-a)/864e5)}
+function dueChip(t){
+  if(!t.due)return "";const n=daysLeft(t.due);
+  const done=t.steps.length&&t.steps.every(s=>s.done);
+  if(done||t.status==="done")return '<span class="due ok">Готово</span>';
+  if(n<0)return '<span class="due late">Просрочено на '+(-n)+' дн.</span>';
+  if(n===0)return '<span class="due late">Сегодня</span>';
+  if(n===1)return '<span class="due soon">Завтра</span>';
+  if(n<=3)return '<span class="due soon">Через '+n+' дн.</span>';
+  return '<span class="due">Через '+n+' дн. · '+fmtDate(t.due)+'</span>';
+}
+function fmtDate(s){const d=new Date(s+"T00:00:00");return d.toLocaleDateString("ru-RU",{day:"numeric",month:"short"})}
+function isDone(t){return t.status==="done"||(t.steps.length>0&&t.steps.every(s=>s.done))}
+
+function shortT(t){const p=(t||"").split(/,\s*/).filter(Boolean);if(!p.length)return "";const n=p[0].split(/\s+/);const one=n.length>=3?n[0]+" "+n[1][0]+". "+n[2][0]+".":p[0];return one+(p.length>1?" и ещё "+(p.length-1):"")}
+function lessonHTML(l,opts){
+  opts=opts||{};const b=bell(l.pair);
+  return '<div class="lesson'+(opts.current?' current':'')+'" style="--c:'+typeColor(l.type)+'" '+(opts.edit?'data-act="edit-lesson" data-id="'+l.id+'" role="button" tabindex="0"':'')+'>'
+   +'<div class="t"><b>'+l.pair+' пара</b>'+b[0]+'<br>'+b[1]+'</div>'
+   +'<div style="min-width:0"><div class="name">'+esc(l.subject)+(l.week!=="all"?'<span class="wk">'+(l.week==="odd"?"числ.":"знам.")+'</span>':'')+'</div>'
+   +'<div class="sub"><span class="tag" style="--c:'+typeColor(l.type)+'">'+TYPES[l.type]+'</span> '+esc(shortT(l.teacher))+'</div>'
+   +(l.building?'<div class="sub">'+esc(l.building)+'</div>':'')
+   +(l.link?'<a class="joinlink" href="'+esc(l.link)+'" target="_blank" rel="noopener">Открыть занятие ↗</a>':'')+'</div>'
+   +(l.room?'<span class="room">'+esc(l.room)+'</span>':'<span></span>')+'</div>';
+}
+
+/* ---------- Views ---------- */
+function vToday(){
+  const now=new Date(),d=todayIdx(),par=parity(now),m=now.getHours()*60+now.getMinutes();
+  const list=lessonsOn(now);
+  let cur=null,next=null;
+  for(const l of list){const b=bell(l.pair);if(m>=mins(b[0])&&m<mins(b[1]))cur=l;else if(mins(b[0])>m&&!next)next=l}
+  let h="";
+  if(S.sample)h+='<div class="notice" style="margin-top:4px"><span class="grow">Сейчас показан пример. Введите своё расписание или очистите пример.</span><button class="btn small" data-act="clear-sample">Очистить пример</button></div>';
+  if(cur){const b=bell(cur.pair),p=Math.round((m-mins(b[0]))/(mins(b[1])-mins(b[0]))*100),left=mins(b[1])-m;
+    h+='<h2>Сейчас идёт</h2><div class="now"><span class="label">'+cur.pair+' пара · '+TYPES[cur.type]+'</span><div class="subj">'+esc(cur.subject)+'</div><div class="meta"><span>Аудитория '+esc(cur.room||"—")+'</span><span class="mono">до '+b[1]+' · осталось '+left+' мин</span></div><div class="bar"><i style="width:'+p+'%"></i></div>'+(cur.link?'<a class="btn small" style="align-self:flex-start;margin-top:6px" href="'+esc(cur.link)+'" target="_blank" rel="noopener">Подключиться ↗</a>':'')+'</div>';
+  }else if(next){const b=bell(next.pair),wait=mins(b[0])-m;
+    h+='<h2>Следующая пара</h2><div class="now"><span class="label">'+next.pair+' пара · '+TYPES[next.type]+'</span><div class="subj">'+esc(next.subject)+'</div><div class="meta"><span>Аудитория '+esc(next.room||"—")+(next.building?' · '+esc(next.building):'')+'</span><span class="mono">в '+b[0]+' · через '+(wait>=60?Math.floor(wait/60)+' ч '+(wait%60)+' мин':wait+' мин')+'</span></div>'+(next.link?'<a class="btn small" style="align-self:flex-start;margin-top:6px" href="'+esc(next.link)+'" target="_blank" rel="noopener">Ссылка на занятие ↗</a>':'')+'</div>';
+  }else{
+    // find next day with lessons
+    let nd=null;for(let i=1;i<=7;i++){const dt=new Date(now);dt.setDate(dt.getDate()+i);const di=dt.getDay();if(di&&lessonsOn(dt).length){nd={dt,di,l:lessonsOn(dt)[0]};break}}
+    h+='<h2>'+(list.length?"Пары на сегодня закончились":"Сегодня пар нет")+'</h2>';
+    if(nd)h+='<div class="now"><span class="label">'+DAYS[nd.di-1]+', '+nd.dt.toLocaleDateString("ru-RU",{day:"numeric",month:"long"})+'</span><div class="subj">'+esc(nd.l.subject)+'</div><div class="meta"><span>Аудитория '+esc(nd.l.room||"—")+'</span><span class="mono">в '+bell(nd.l.pair)[0]+'</span></div></div>';
+  }
+  h+='<h2>'+(d?DAYS[d-1]:"Воскресенье")+'</h2>';
+  h+=list.length?'<div class="stack">'+list.map(l=>lessonHTML(l,{current:cur&&l.id===cur.id})).join("")+'</div>':'<div class="empty">Выходной. Отдохните или загляните в задания.</div>';
+  const up=S.tasks.filter(t=>!isDone(t)).sort((a,b)=>(a.due||"9").localeCompare(b.due||"9")).slice(0,3);
+  h+='<h2>Ближайшие дедлайны</h2>';
+  h+=up.length?'<div class="stack">'+up.map(t=>'<div class="task" data-act="go-tasks" role="button" tabindex="0"><div class="row"><span class="title grow">'+esc(t.title)+'</span>'+dueChip(t)+'</div><span class="muted" style="font-size:13px">'+esc(t.subject)+'</span></div>').join("")+'</div>':'<div class="empty">Все задания сданы.</div>';
+  return h;
+}
+
+function vSchedule(){
+  const td=new Date();td.setHours(0,0,0,0);
+  const mon=mondayOf(td);mon.setDate(mon.getDate()+ui.wOff*7);
+  const dates=DAYS_S.map((_,i)=>{const x=new Date(mon);x.setDate(x.getDate()+i);return x});
+  const sun=new Date(mon);sun.setDate(sun.getDate()+6);
+  const f=d=>d.toLocaleDateString("ru-RU",{day:"numeric",month:"short"});
+  const wn=weekNo(mon),par=parity(mon);
+  let h='<div class="row" style="margin-top:4px"><button class="iconbtn" data-act="wprev" aria-label="Предыдущая неделя">‹</button>'
+   +'<div class="grow" style="text-align:center"><div style="font-weight:700">'+f(mon)+' – '+f(sun)+'</div><div class="muted" style="font-size:12px">'+(ui.wOff===0?"Эта неделя":ui.wOff===1?"Следующая неделя":ui.wOff===-1?"Прошлая неделя":(wn>0?wn+"-я неделя":""))+(usesParity()?' · '+(par==="odd"?"числитель":"знаменатель"):'')+'</div></div>'
+   +'<button class="iconbtn" data-act="wnext" aria-label="Следующая неделя">›</button></div>';
+  h+='<div class="seg" style="margin-top:8px" role="group" aria-label="День">'+dates.map((d,i)=>'<button data-act="day" data-v="'+(i+1)+'" aria-pressed="'+(ui.day===i+1)+'" class="'+(+d===+td?"today":"")+'">'+DAYS_S[i]+' <span class="mono" style="font-size:11px;opacity:.7">'+d.getDate()+'</span></button>').join("")+'</div>';
+  const date=dates[ui.day-1],list=lessonsOn(date);
+  h+='<div class="row" style="margin:18px 0 10px"><h2 class="grow" style="margin:0">'+DAYS[ui.day-1]+', '+date.toLocaleDateString("ru-RU",{day:"numeric",month:"long"})+'</h2><span class="muted">'+list.length+' '+plural(list.length,"пара","пары","пар")+'</span></div>';
+  h+=list.length?'<div class="stack">'+list.map(l=>lessonHTML(l,{edit:true})).join("")+'</div>':'<div class="empty">В этот день пар нет.</div>';
+  h+='<div class="row" style="margin-top:14px"><button class="btn primary" data-act="add-lesson">+ Добавить пару</button><button class="btn" data-act="ics">Импорт .ics</button><button class="btn" data-act="bulk">Вставить списком</button></div>';
+  h+='<p class="muted" style="font-size:13px">Нажмите на пару, чтобы изменить её. Файл .ics можно скачать в личном кабинете вуза.</p>';
+  return h;
+}
+function plural(n,a,b,c){n=Math.abs(n)%100;const m=n%10;if(n>10&&n<20)return c;if(m>1&&m<5)return b;if(m===1)return a;return c}
+
+function vRooms(){
+  const now=new Date(),d=todayIdx(),par=parity(now),m=now.getHours()*60+now.getMinutes();
+  const rooms={};
+  S.lessons.forEach(l=>{if(!l.room)return;(rooms[l.room]=rooms[l.room]||[]).push(l)});
+  const q=(ui.roomQ||"").toLowerCase();
+  const keys=Object.keys(rooms).filter(r=>!q||r.toLowerCase().includes(q)||rooms[r].some(l=>l.subject.toLowerCase().includes(q))).sort((a,b)=>a.localeCompare(b,"ru",{numeric:true}));
+  let h='<label class="f" style="margin-top:4px">Поиск по аудитории или предмету<input id="room-q" type="search" placeholder="Например, 312 или Физика" value="'+esc(ui.roomQ||"")+'"></label>';
+  const todayRooms=lessonsOn(now).filter(l=>l.room);
+  if(todayRooms.length&&!q){
+    h+='<h2>Маршрут на сегодня</h2><div class="stack">'+todayRooms.map(l=>{const b=bell(l.pair);const isNow=m>=mins(b[0])&&m<mins(b[1]);return '<div class="row" style="background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px"><span class="mono muted" style="width:46px">'+b[0]+'</span><span class="room">'+esc(l.room)+'</span><span class="grow">'+esc(l.subject)+'</span>'+(isNow?'<span class="status busy">сейчас</span>':'')+'</div>'}).join("")+'</div>';
+  }
+  h+='<h2>Все мои аудитории</h2>';
+  if(!keys.length)return h+'<div class="empty">Аудитории появятся, когда вы укажете их в расписании.</div>';
+  h+='<div class="stack">'+keys.map(r=>{
+    const ls=rooms[r].slice().sort((a,b)=>a.day-b.day||a.pair-b.pair);
+    const busy=d&&ls.some(l=>l.day===d&&(l.week==="all"||l.week===par)&&m>=mins(bell(l.pair)[0])&&m<mins(bell(l.pair)[1]));
+    return '<div class="roomcard"><div class="row"><span class="num grow">'+esc(r)+'</span>'+(busy?'<span class="status busy">у вас здесь пара</span>':'')+'</div><ul>'+ls.map(l=>'<li>'+DAYS_S[l.day-1]+', '+l.pair+' пара ('+bell(l.pair)[0]+') — '+esc(l.subject)+(l.week!=="all"?' <span class="muted">· '+WEEKS[l.week].toLowerCase()+'</span>':'')+'</li>').join("")+'</ul></div>'}).join("")+'</div>';
+  return h;
+}
+
+function vTasks(){
+  const f=ui.taskFilter;
+  let list=S.tasks.slice().sort((a,b)=>(a.due||"9").localeCompare(b.due||"9"));
+  list=list.filter(t=>f==="all"||(f==="active"?!isDone(t):isDone(t)));
+  let h='<div class="seg" style="margin-top:4px" role="group" aria-label="Фильтр">'+[["active","Активные"],["done","Сданные"],["all","Все"]].map(([v,n])=>'<button data-act="tfilter" data-v="'+v+'" aria-pressed="'+(f===v)+'">'+n+'</button>').join("")+'</div>';
+  h+='<div class="row" style="margin:14px 0"><button class="btn primary" data-act="add-task">+ Новое задание</button></div>';
+  if(!list.length)return h+'<div class="empty">'+(f==="done"?"Пока ничего не сдано.":"Нет активных заданий. Добавьте реферат, лабораторную или курсовую — план шагов появится сам.")+'</div>';
+  h+='<div class="stack">'+list.map(t=>{
+    const done=t.steps.filter(s=>s.done).length,p=t.steps.length?Math.round(done/t.steps.length*100):(isDone(t)?100:0);
+    return '<div class="task'+(isDone(t)?' done':'')+'"><div class="row"><span class="title grow">'+esc(t.title)+'</span>'+dueChip(t)+'</div>'
+     +'<div class="row muted" style="font-size:13px"><span class="grow">'+esc(KINDS[t.kind]?KINDS[t.kind].n:"")+(t.subject?' · '+esc(t.subject):'')+'</span><span class="mono">'+done+'/'+t.steps.length+'</span></div>'
+     +'<div class="progress"><i style="width:'+p+'%"></i></div>'
+     +(t.steps.length?'<details'+(ui.open===t.id?' open':'')+' data-tid="'+t.id+'"><summary>Шаги</summary><ul class="steps">'+t.steps.map((s,i)=>'<li><label><input type="checkbox" data-act="step" data-id="'+t.id+'" data-i="'+i+'"'+(s.done?' checked':'')+'><span class="'+(s.done?'d':'')+'">'+esc(s.t)+'</span></label></li>').join("")+'</ul></details>':'')
+     +(t.notes?'<div class="muted" style="font-size:13px;white-space:pre-wrap">'+esc(t.notes)+'</div>':'')
+     +'<div class="row"><button class="btn small" data-act="edit-task" data-id="'+t.id+'">Изменить</button>'+(t.kind==="dok"||t.kind==="kurs"?'<button class="btn small" data-act="to-pres" data-id="'+t.id+'">Сделать план презентации</button>':'')+'</div></div>'}).join("")+'</div>';
+  return h;
+}
+
+/* Presentation planner */
+const PRES={
+  dok:{n:"Доклад на семинаре",s:[["Титульный слайд","Тема, ваше ФИО, группа, предмет, преподаватель",.04],["Актуальность","Почему тема важна сейчас: 1 факт или цифра",.10],["Цель и задачи","Одна цель, 2–3 задачи",.08],["Основное понятие","Определение простыми словами + схема",.14],["Ключевая мысль 1","Тезис + пример",.15],["Ключевая мысль 2","Тезис + график или таблица",.15],["Пример из практики","Кейс из Узбекистана или мира",.14],["Выводы","3 коротких вывода, отвечающих на задачи",.12],["Список источников","4–6 источников по ГОСТ",.03],["Спасибо за внимание","Контакты и «Готов ответить на вопросы»",.05]]},
+  kurs:{n:"Защита курсовой",s:[["Титульный слайд","Вуз, кафедра, тема, ФИО, руководитель",.03],["Актуальность","Проблема и почему её нужно решать",.09],["Объект и предмет","Что и в каком аспекте изучается",.06],["Цель и задачи","Цель + задачи (как в введении)",.08],["Методы исследования","Какие методы и почему",.07],["Теоретическая часть","Главное из главы 1 — схема, не текст",.13],["Практическая часть","Что сделано: данные, расчёты",.17],["Результаты","Графики, таблицы, цифры",.17],["Выводы","По каждой задаче — один вывод",.12],["Рекомендации","Практическая значимость",.05],["Спасибо за внимание","Готовность к вопросам комиссии",.03]]},
+  lab:{n:"Защита лабораторной",s:[["Тема и цель работы","Номер работы, цель",.1],["Теория","Формулы и закон, на котором основана работа",.2],["Ход работы","Схема установки или алгоритм",.25],["Результаты","Таблица измерений, график",.25],["Выводы","Совпали ли результаты с теорией",.15],["Вопросы","Готовность ответить",.05]]}
+};
+function buildPlan(){
+  const P=PRES[S.pres.kind]||PRES.dok,total=Math.max(2,+S.pres.minutes||7)*60;
+  return P.s.map(([h,d,w])=>({h,d,sec:Math.max(10,Math.round(total*w/5)*5)}));
+}
+function fmtS(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")}
+function vPresent(){
+  const plan=buildPlan(),total=plan.reduce((a,b)=>a+b.sec,0);
+  let h='<div class="stack" style="margin-top:4px"><label class="f">Тема выступления<input id="p-topic" value="'+esc(S.pres.topic)+'" placeholder="Например, Возобновляемая энергетика"></label>'
+   +'<div class="grid2"><label class="f">Тип<select id="p-kind">'+Object.keys(PRES).map(k=>'<option value="'+k+'"'+(S.pres.kind===k?' selected':'')+'>'+PRES[k].n+'</option>').join("")+'</select></label>'
+   +'<label class="f">Время на выступление, мин<input id="p-min" type="number" inputmode="numeric" min="2" max="30" value="'+esc(S.pres.minutes)+'"></label></div></div>';
+  h+='<div class="row" style="margin:18px 0 10px"><h2 class="grow" style="margin:0">План слайдов</h2><span class="muted mono">'+plan.length+' слайдов · '+fmtS(total)+'</span></div>';
+  h+='<ol class="slides">'+plan.map((s,i)=>'<li class="slide'+(ui.timer&&ui.slide===i?' active':'')+'"><span class="n">'+(i+1)+'</span><div style="min-width:0"><div class="h">'+esc(i===0&&S.pres.topic?S.pres.topic:s.h)+'</div><div class="d">'+esc(i===0&&S.pres.topic?s.d:s.d)+'</div></div><span class="mono muted">'+fmtS(s.sec)+'</span></li>').join("")+'</ol>';
+  h+='<div class="row" style="margin-top:10px"><button class="btn" data-act="copy-plan">Скопировать план</button></div>';
+  h+='<h2>Репетиция</h2><div class="timer"><span class="label">'+(ui.timer?"Слайд "+(ui.slide+1)+" из "+plan.length+": "+esc(plan[ui.slide].h):"Нажмите «Старт» и говорите вслух")+'</span><div class="big" id="t-big">'+fmtS(ui.elapsed||0)+' <span style="font-size:18px;opacity:.7">/ '+fmtS(total)+'</span></div><div class="bar"><i id="t-bar" style="width:'+Math.min(100,(ui.elapsed||0)/total*100)+'%"></i></div>'
+   +'<div class="row"><button class="btn small" data-act="t-toggle">'+(ui.timer?"Пауза":"Старт")+'</button><button class="btn small" data-act="t-next"'+(ui.timer?'':' disabled')+'>Следующий слайд</button><button class="btn small ghost" style="color:inherit" data-act="t-reset">Сброс</button></div></div>';
+  h+='<h2>Правила хорошего слайда</h2><ul class="tips"><li>Не больше 6 строк по 6 слов. Остальное говорите вслух.</li><li>Шрифт не меньше 24 pt, заголовок — от 32 pt.</li><li>Одна мысль — один слайд.</li><li>Картинка или график лучше абзаца текста.</li><li>Не читайте со слайда: смотрите на аудиторию.</li><li>Примерно 1 минута на слайд — нормальный темп.</li><li>Проверьте файл на компьютере аудитории заранее, возьмите копию в PDF.</li></ul>';
+  return h;
+}
+
+/* ---------- Render ---------- */
+const VIEWS={today:vToday,schedule:vSchedule,rooms:vRooms,tasks:vTasks,present:vPresent};
+function render(){
+  const now=new Date();
+  document.getElementById("today-line").textContent=now.toLocaleDateString("ru-RU",{weekday:"long",day:"numeric",month:"long"});
+  const wn=weekNo(now);
+  document.getElementById("week-pill").textContent=usesParity()?(wn>0?wn+" нед. · ":"")+(parity(now)==="odd"?"числитель":"знаменатель"):(wn>0?wn+"-я неделя":"");
+  document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-current",b.dataset.tab===ui.tab?"page":"false"));
+  const v=document.getElementById("view");
+  const focusId=document.activeElement&&document.activeElement.id,sel=focusId&&document.activeElement.selectionStart;
+  v.innerHTML=VIEWS[ui.tab]();
+  if(focusId){const el=document.getElementById(focusId);if(el){el.focus();try{el.setSelectionRange(sel,sel)}catch(e){}}}
+}
+function setTab(t){ui.tab=t;try{localStorage.setItem(KEY+".tab",t)}catch(e){};if(location.hash.slice(1)!==t)history.replaceState(null,"","#"+t);render();window.scrollTo(0,0)}
+function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,2200)}
+
+/* ---------- Sheets ---------- */
+function openSheet(html,onMount){
+  const r=document.getElementById("sheet-root");
+  r.innerHTML='<div class="sheet-bg" data-act="close-bg"><div class="sheet" role="dialog" aria-modal="true">'+html+'</div></div>';
+  if(onMount)onMount(r.querySelector(".sheet"));
+  const f=r.querySelector("input,select,textarea");if(f)f.focus();
+}
+function closeSheet(){document.getElementById("sheet-root").innerHTML=""}
+function subjOptions(){return [...new Set(S.lessons.map(l=>l.subject).concat(S.tasks.map(t=>t.subject)).filter(Boolean))].map(s=>'<option value="'+esc(s)+'">').join("")}
+
+function lessonSheet(l){
+  const isNew=!l;l=l||{day:ui.day,pair:1,type:"lec",week:"all",subject:"",room:"",teacher:""};
+  openSheet('<h3>'+(isNew?"Новая пара":"Изменить пару")+'</h3><form id="lf" class="stack">'
+   +'<label class="f">Предмет<input id="lf-subject" required list="subjects" value="'+esc(l.subject)+'"><datalist id="subjects">'+subjOptions()+'</datalist></label>'
+   +'<div class="grid2"><label class="f">День<select id="lf-day">'+DAYS.map((d,i)=>'<option value="'+(i+1)+'"'+(l.day===i+1?' selected':'')+'>'+d+'</option>').join("")+'</select></label>'
+   +'<label class="f">Пара<select id="lf-pair">'+S.settings.bells.map((b,i)=>'<option value="'+(i+1)+'"'+(l.pair===i+1?' selected':'')+'>'+(i+1)+' пара · '+b[0]+'–'+b[1]+'</option>').join("")+'</select></label>'
+   +'<label class="f">Вид занятия<select id="lf-type">'+Object.keys(TYPES).map(k=>'<option value="'+k+'"'+(l.type===k?' selected':'')+'>'+TYPES[k]+'</option>').join("")+'</select></label>'
+   +'<label class="f">Неделя<select id="lf-week">'+Object.keys(WEEKS).map(k=>'<option value="'+k+'"'+(l.week===k?' selected':'')+'>'+WEEKS[k]+'</option>').join("")+'</select></label>'
+   +'<label class="f">Аудитория<input id="lf-room" value="'+esc(l.room)+'" placeholder="312, А-204, Лаб-1"></label>'
+   +'<label class="f">Преподаватель<input id="lf-teacher" value="'+esc(l.teacher)+'"></label>'
+   +'<label class="f">Корпус<input id="lf-building" value="'+esc(l.building||"")+'" placeholder="Прянишникова"></label>'
+   +'<label class="f">Действует с даты<input id="lf-from" type="date" value="'+esc(l.from||"")+'"></label></div>'
+   +'<label class="f">Ссылка на вебинар<input id="lf-link" type="url" value="'+esc(l.link||"")+'" placeholder="https://"></label>'
+   +'<div class="row"><button class="btn primary" type="submit">Сохранить</button><button class="btn" type="button" data-act="close">Отмена</button>'+(isNew?'':'<button class="btn danger ghost" type="button" data-act="del-lesson" data-id="'+l.id+'" style="margin-left:auto">Удалить</button>')+'</div></form>',
+  sh=>sh.querySelector("#lf").addEventListener("submit",e=>{e.preventDefault();
+    const g=id=>sh.querySelector("#lf-"+id).value.trim();
+    const o={subject:g("subject"),day:+g("day"),pair:+g("pair"),type:g("type"),week:g("week"),room:g("room"),teacher:g("teacher"),building:g("building"),from:g("from"),link:g("link")};
+    if(isNew)S.lessons.push(Object.assign({id:uid()},o));else Object.assign(l,o);
+    S.sample=false;ui.day=o.day;save();closeSheet();render();toast("Пара сохранена")}));
+}
+
+function bulkSheet(){
+  openSheet('<h3>Вставить расписание списком</h3><p class="muted" style="margin:0;font-size:13px">Одна пара на строку: <span class="mono">день; пара; предмет; вид; аудитория; преподаватель; неделя</span>. Вид: лек, пр, лаб, сем. Неделя (необязательно): числ или знам.</p>'
+   +'<textarea id="bulk-t" placeholder="Пн; 1; Высшая математика; лек; А-204; Каримов Р. А.&#10;Пн; 2; Английский язык; пр; 118&#10;Вт; 2; Информатика; лаб; Лаб-3; ; числ"></textarea>'
+   +'<label class="row" style="font-size:14px"><input type="checkbox" id="bulk-replace" style="width:18px;height:18px"> Заменить всё текущее расписание</label>'
+   +'<div class="row"><button class="btn primary" data-act="bulk-go">Добавить</button><button class="btn" data-act="close">Отмена</button></div>');
+}
+function icsSheet(){
+  openSheet('<h3>Импорт расписания из .ics</h3><p class="muted" style="margin:0;font-size:13px">Выберите файл календаря из личного кабинета или вставьте его текст. Пары, вебинары, аудитории и преподаватели подтянутся автоматически.</p>'
+   +'<label class="f">Файл<input type="file" id="ics-file" accept=".ics,text/calendar"></label>'
+   +'<textarea id="ics-t" placeholder="BEGIN:VCALENDAR …"></textarea>'
+   +'<label class="row" style="font-size:14px"><input type="checkbox" id="ics-replace" checked style="width:18px;height:18px"> Заменить текущее расписание</label>'
+   +'<div class="row"><button class="btn primary" data-act="ics-go">Импортировать</button><button class="btn" data-act="close">Отмена</button></div>',
+  sh=>sh.querySelector("#ics-file").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{sh.querySelector("#ics-t").value=r.result;toast("Файл загружен — нажмите «Импортировать»")};r.readAsText(f)}));
+}
+function parseBulk(text){
+  const dmap={пн:1,вт:2,ср:3,чт:4,пт:5,сб:6};const out=[];const bad=[];
+  text.split(/\n/).map(s=>s.trim()).filter(Boolean).forEach((line,i)=>{
+    const p=line.split(/[;\t|]/).map(s=>s.trim());
+    const day=dmap[(p[0]||"").toLowerCase().slice(0,2)],pair=parseInt(p[1],10);
+    if(!day||!pair||!p[2]){bad.push(i+1);return}
+    const tv=(p[3]||"").toLowerCase();const type=tv.startsWith("пр")?"prac":tv.startsWith("лаб")?"lab":tv.startsWith("сем")?"sem":"lec";
+    const wv=(p[6]||"").toLowerCase();const week=wv.startsWith("чис")||wv==="нечет"?"odd":wv.startsWith("зн")||wv==="чет"?"even":"all";
+    out.push({id:uid(),day,pair,subject:p[2],type,room:p[4]||"",teacher:p[5]||"",week});
+  });
+  return {out,bad};
+}
+
+function taskSheet(t){
+  const isNew=!t;t=t||{title:"",subject:"",kind:"ref",due:iso(new Date(Date.now()+7*864e5)),notes:"",steps:[]};
+  openSheet('<h3>'+(isNew?"Новое задание":"Изменить задание")+'</h3><form id="tf" class="stack">'
+   +'<label class="f">Название<input id="tf-title" required value="'+esc(t.title)+'" placeholder="Реферат: …"></label>'
+   +'<div class="grid2"><label class="f">Предмет<input id="tf-subject" list="subjects2" value="'+esc(t.subject)+'"><datalist id="subjects2">'+subjOptions()+'</datalist></label>'
+   +'<label class="f">Тип работы<select id="tf-kind">'+Object.keys(KINDS).map(k=>'<option value="'+k+'"'+(t.kind===k?' selected':'')+'>'+KINDS[k].n+'</option>').join("")+'</select></label>'
+   +'<label class="f">Сдать до<input id="tf-due" type="date" value="'+esc(t.due)+'"></label>'
+   +'<label class="f">Статус<select id="tf-status"><option value="">В работе</option><option value="done"'+(t.status==="done"?' selected':'')+'>Сдано</option></select></label></div>'
+   +'<label class="f">Шаги (по одному на строку)<textarea id="tf-steps" style="font-family:var(--f-body);font-size:14px">'+esc((isNew?KINDS[t.kind].steps:t.steps.map(s=>s.t)).join("\n"))+'</textarea></label>'
+   +'<label class="f">Заметки<input id="tf-notes" value="'+esc(t.notes)+'" placeholder="Требования преподавателя, объём, ссылки"></label>'
+   +'<div class="row"><button class="btn primary" type="submit">Сохранить</button><button class="btn" type="button" data-act="close">Отмена</button>'+(isNew?'':'<button class="btn danger ghost" type="button" data-act="del-task" data-id="'+t.id+'" style="margin-left:auto">Удалить</button>')+'</div></form>',
+  sh=>{
+    const kind=sh.querySelector("#tf-kind"),steps=sh.querySelector("#tf-steps");
+    kind.addEventListener("change",()=>{const cur=steps.value.trim();const isTpl=!cur||Object.values(KINDS).some(k=>k.steps.join("\n")===cur);if(isTpl)steps.value=KINDS[kind.value].steps.join("\n")});
+    sh.querySelector("#tf").addEventListener("submit",e=>{e.preventDefault();
+      const g=id=>sh.querySelector("#tf-"+id).value.trim();
+      const old={};t.steps.forEach(s=>old[s.t]=s.done);
+      const o={title:g("title"),subject:g("subject"),kind:g("kind"),due:g("due"),notes:g("notes"),status:g("status"),steps:g("steps").split("\n").map(s=>s.trim()).filter(Boolean).map(s=>({t:s,done:!!old[s]}))};
+      if(isNew)S.tasks.push(Object.assign({id:uid()},o));else Object.assign(t,o);
+      save();closeSheet();render();toast("Задание сохранено")});
+  });
+}
+
+function settingsSheet(){
+  openSheet('<h3>Настройки</h3><form id="sf" class="stack">'
+   +'<label class="f">Начало семестра (первая неделя — числитель)<input id="sf-start" type="date" value="'+esc(S.settings.semStart)+'"></label>'
+   +'<div class="label">Звонки</div><div class="stack">'+S.settings.bells.map((b,i)=>'<div class="row"><span class="mono" style="width:60px">'+(i+1)+' пара</span><input id="sf-b'+i+'a" type="time" value="'+b[0]+'" style="flex:1"><span>–</span><input id="sf-b'+i+'b" type="time" value="'+b[1]+'" style="flex:1"></div>').join("")+'</div>'
+   +'<div class="row"><button class="btn primary" type="submit">Сохранить</button><button class="btn" type="button" data-act="close">Закрыть</button></div></form>'
+   +'<div class="label" style="margin-top:8px">Резервная копия</div><p class="muted" style="margin:0;font-size:13px">Данные хранятся только на этом устройстве. Скопируйте текст ниже, чтобы перенести их на другой телефон, и вставьте его туда.</p>'
+   +'<textarea id="sf-json">'+esc(JSON.stringify({lessons:S.lessons,tasks:S.tasks,settings:S.settings}))+'</textarea>'
+   +'<div class="row"><button class="btn" data-act="copy-json">Скопировать</button><button class="btn" data-act="import-json">Загрузить из поля</button><button class="btn danger ghost" data-act="reset-all" style="margin-left:auto">Стереть всё</button></div>',
+  sh=>sh.querySelector("#sf").addEventListener("submit",e=>{e.preventDefault();
+    S.settings.semStart=sh.querySelector("#sf-start").value||S.settings.semStart;
+    S.settings.bells=S.settings.bells.map((b,i)=>[sh.querySelector("#sf-b"+i+"a").value||b[0],sh.querySelector("#sf-b"+i+"b").value||b[1]]);
+    ui.week=null;save();closeSheet();render();toast("Настройки сохранены")}));
+}
+
+function copyText(text,el){
+  const done=()=>toast("Скопировано");
+  try{navigator.clipboard.writeText(text).then(done,()=>fallback())}catch(e){fallback()}
+  function fallback(){if(el){el.focus();el.select();toast("Выделено — скопируйте вручную")}}
+}
+
+/* ---------- Events ---------- */
+document.addEventListener("click",e=>{
+  if(e.target.closest("a"))return;
+  const tab=e.target.closest("[data-tab]");if(tab){setTab(tab.dataset.tab);return}
+  const a=e.target.closest("[data-act]");if(!a)return;
+  const act=a.dataset.act,id=a.dataset.id;
+  if(act==="close-bg"&&e.target!==a)return;
+  switch(act){
+    case "close":case "close-bg":closeSheet();break;
+    case "settings":settingsSheet();break;
+    case "week":ui.week=a.dataset.v;render();break;
+    case "day":ui.day=+a.dataset.v;render();break;
+    case "wprev":ui.wOff--;render();break;
+    case "wnext":ui.wOff++;render();break;
+    case "ics":icsSheet();break;
+    case "ics-go":{const n=importICS(document.getElementById("ics-t").value,document.getElementById("ics-replace").checked);if(n){closeSheet();ui.wOff=0;render();toast("Импортировано пар: "+n)}else toast("В тексте не найдено ни одного занятия");break}
+    case "add-lesson":lessonSheet();break;
+    case "edit-lesson":lessonSheet(S.lessons.find(l=>l.id===id));break;
+    case "del-lesson":if(a.dataset.sure){S.lessons=S.lessons.filter(l=>l.id!==id);save();closeSheet();render();toast("Пара удалена")}else{a.dataset.sure=1;a.textContent="Точно удалить?"}break;
+    case "bulk":bulkSheet();break;
+    case "bulk-go":{const {out,bad}=parseBulk(document.getElementById("bulk-t").value);
+      if(!out.length){toast("Не удалось прочитать строки. Проверьте формат.");break}
+      if(document.getElementById("bulk-replace").checked||S.sample)S.lessons=[];
+      if(S.sample){S.tasks=[];S.sample=false}
+      S.lessons.push(...out);save();closeSheet();render();toast("Добавлено пар: "+out.length+(bad.length?" · пропущены строки "+bad.join(", "):""));break}
+    case "clear-sample":S.lessons=[];S.tasks=[];S.sample=false;save();setTab("schedule");toast("Пример очищен");break;
+    case "go-tasks":setTab("tasks");break;
+    case "tfilter":ui.taskFilter=a.dataset.v;render();break;
+    case "add-task":taskSheet();break;
+    case "edit-task":taskSheet(S.tasks.find(t=>t.id===id));break;
+    case "del-task":if(a.dataset.sure){S.tasks=S.tasks.filter(t=>t.id!==id);save();closeSheet();render();toast("Задание удалено")}else{a.dataset.sure=1;a.textContent="Точно удалить?"}break;
+    case "to-pres":{const t=S.tasks.find(t=>t.id===id);S.pres.topic=t.title.replace(/^[^:]+:\s*/,"");S.pres.kind=t.kind==="kurs"?"kurs":"dok";save();setTab("present");break}
+    case "copy-plan":{const plan=buildPlan();copyText((S.pres.topic||"Презентация")+"\n\n"+plan.map((s,i)=>(i+1)+". "+s.h+" ("+fmtS(s.sec)+") — "+s.d).join("\n"));break}
+    case "t-toggle":if(ui.timer){clearInterval(ui.timer);ui.timer=null}else{ui.elapsed=ui.elapsed||0;ui.timer=setInterval(tick,1000)}render();break;
+    case "t-next":{const n=buildPlan().length;ui.slide=Math.min(n-1,ui.slide+1);render();break}
+    case "t-reset":clearInterval(ui.timer);ui.timer=null;ui.elapsed=0;ui.slide=0;render();break;
+    case "copy-json":copyText(document.getElementById("sf-json").value,document.getElementById("sf-json"));break;
+    case "import-json":try{const d=JSON.parse(document.getElementById("sf-json").value);if(!Array.isArray(d.lessons))throw 0;S.lessons=d.lessons;S.tasks=d.tasks||[];S.settings=d.settings||S.settings;S.sample=false;save();closeSheet();render();toast("Данные загружены")}catch(err){toast("Текст не похож на резервную копию Зачётки")}break;
+    case "reset-all":if(a.dataset.sure){S={settings:S.settings,lessons:[],tasks:[],pres:S.pres};save();closeSheet();render();toast("Всё стёрто")}else{a.dataset.sure=1;a.textContent="Точно стереть?"}break;
+  }
+});
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape")closeSheet();
+  if((e.key==="Enter"||e.key===" ")&&e.target.matches('[role="button"][data-act]')){e.preventDefault();e.target.click()}
+});
+document.addEventListener("change",e=>{
+  const el=e.target;
+  if(el.dataset.act==="step"){const t=S.tasks.find(t=>t.id===el.dataset.id);t.steps[+el.dataset.i].done=el.checked;ui.open=t.id;save();render();return}
+  if(el.id==="p-kind"){S.pres.kind=el.value;save();render()}
+});
+document.addEventListener("input",e=>{
+  const el=e.target;
+  if(el.id==="room-q"){ui.roomQ=el.value;render()}
+  if(el.id==="p-topic"){S.pres.topic=el.value;save();render()}
+  if(el.id==="p-min"){S.pres.minutes=+el.value||7;save();render()}
+});
+function tick(){
+  ui.elapsed++;const plan=buildPlan();let acc=0,idx=0;for(let i=0;i<plan.length;i++){acc+=plan[i].sec;if(ui.elapsed<acc){idx=i;break}idx=i}
+  if(idx>ui.slide)ui.slide=idx;
+  if(ui.tab==="present")render();
+}
+window.addEventListener("hashchange",()=>{const h=location.hash.slice(1);if(VIEWS[h]&&h!==ui.tab)setTab(h)});
+setInterval(()=>{if(ui.tab==="today"&&!document.getElementById("sheet-root").innerHTML)render()},30000);
+render();
+
+if("serviceWorker" in navigator&&location.protocol==="https:"){navigator.serviceWorker.register("sw.js").catch(()=>{})}
+})();
+</script>
+</body>
+</html>
